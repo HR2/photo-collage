@@ -1,7 +1,7 @@
 import { h, icon } from '../util.js';
 import { Project } from '../model/project.js';
 import { layoutTitle } from '../layout/index.js';
-import { isImageFile, makePhoto, MAX_PHOTOS, previewMaxPixel } from '../services/images.js';
+import { isImageFile, loadPhotoFiles, MAX_PHOTOS, previewMaxPixel } from '../services/images.js';
 import { MAX_CANVAS_PIXELS } from '../services/exporter.js';
 import * as store from '../services/store.js';
 import { alertDialog, button, showLoading, topBar } from './common.js';
@@ -139,13 +139,14 @@ export function createSetupScreen(nav) {
       const date = new Date(saved.savedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
       resumeInfo.replaceChildren(
         h('div', { class: 'resume-title' }, `${saved.photos.length} 枚・${saved.canvasW} × ${saved.canvasH} px`),
-        h('div', { class: 'caption' }, `${layoutTitle(saved.layoutKind)} ・ ${date} に保存`));
+        h('div', { class: 'caption' },
+          `${saved.cells?.length ? layoutTitle(saved.layoutKind) : 'レイアウト未選択'} ・ ${date} に保存`));
     }
   }
 
   async function refreshSaved() {
     const project = await store.loadProject();
-    saved = project?.cells?.length ? project : null;
+    saved = project?.photos?.length ? project : null;
     render();
   }
 
@@ -167,16 +168,8 @@ export function createSetupScreen(nav) {
     saved = null;
     const loading = showLoading('写真を読み込み中');
     loading.update(0, files.length);
-    const maxPixel = previewMaxPixel(files.length);
-    const photos = [];
-    for (const [index, file] of files.entries()) {
-      try {
-        photos.push(await makePhoto(file, { name: file.name, maxPixel }));
-      } catch (error) {
-        console.warn('読み込めない写真', file.name, error);
-      }
-      loading.update(index + 1, files.length);
-    }
+    const { photos } = await loadPhotoFiles(files, previewMaxPixel(files.length),
+      (done, total) => loading.update(done, total));
     const stored = photos.length ? await store.putPhotos(photos) : false;
     loading.close();
     busy = false;
@@ -212,7 +205,8 @@ export function createSetupScreen(nav) {
       return;
     }
     render();
-    nav.push(createCompareScreen(nav, project, { opensEditor: true }));
+    // レイアウトを選ぶ前の状態で保存されていたら、見比べ画面から再開する
+    nav.push(createCompareScreen(nav, project, { opensEditor: project.cells.length > 0 }));
   }
 
   render();

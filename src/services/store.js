@@ -71,6 +71,17 @@ export async function putPhotos(photos) {
   }
 }
 
+export async function deletePhotos(ids) {
+  try {
+    await run(['photos'], 'readwrite', (tx) => {
+      const store = tx.objectStore('photos');
+      for (const id of ids) store.delete(id);
+    });
+  } catch {
+    // 保存できない環境では何もしない
+  }
+}
+
 /** 保存済みのプロジェクトと写真をすべて削除する */
 export async function clearAll() {
   cancelScheduledSave();

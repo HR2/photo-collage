@@ -126,6 +126,50 @@ export class Project {
     await this.relayout();
   }
 
+  // MARK: 写真の追加と削除
+
+  /** 写真を追加する。レイアウトは作り直しになるので、今のセルと編集の履歴は捨てる。 */
+  addPhotos(newPhotos) {
+    if (!newPhotos.length) return;
+    this.photos = [...this.photos, ...newPhotos];
+    for (const photo of newPhotos) this.photoById.set(photo.id, photo);
+    this.discardLayout();
+  }
+
+  /**
+   * 写真を削除する。最後の 1 枚は削除できない。
+   * @returns 元に戻すための情報 (restorePhoto に渡す)。削除しなかったときは null。
+   */
+  removePhoto(id) {
+    const index = this.photos.findIndex((p) => p.id === id);
+    if (index < 0 || this.photos.length <= 1) return null;
+    const removed = { photo: this.photos[index], index, wasFeatured: this.featuredIds.has(id) };
+    this.photos = this.photos.filter((p) => p.id !== id);
+    this.photoById.delete(id);
+    this.featuredIds.delete(id);
+    this.discardLayout();
+    return removed;
+  }
+
+  /** 削除した写真を元の位置に戻す */
+  restorePhoto({ photo, index, wasFeatured }) {
+    if (this.photoById.has(photo.id)) return;
+    const photos = this.photos.slice();
+    photos.splice(Math.min(index, photos.length), 0, photo);
+    this.photos = photos;
+    this.photoById.set(photo.id, photo);
+    if (wasFeatured) this.featuredIds.add(photo.id);
+    this.discardLayout();
+  }
+
+  /** 写真が変わったので、今のレイアウトと編集の履歴を捨てる (見比べ画面で選び直す) */
+  discardLayout() {
+    this.cells = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.changed('photos');
+  }
+
   // MARK: 編集
 
   /** 2 つのセルの写真を入れ替える。セルの形はそのまま。 */

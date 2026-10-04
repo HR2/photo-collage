@@ -19,13 +19,19 @@ export function previewMaxPixel(photoCount) {
 export async function loadImage(blob) {
   const url = URL.createObjectURL(blob);
   const img = new Image();
-  img.decoding = 'async';
-  img.src = url;
+  // img.decode() はページが非表示 (別のアプリやタブに切り替え中) だと表示されるまで待たされるので、
+  // 読み込み完了のイベントで待つ。デコードは描画時に行われる。
   try {
-    await img.decode();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('画像を読み込めません'));
+      img.src = url;
+    });
   } catch (error) {
     URL.revokeObjectURL(url);
     throw error;
+  } finally {
+    img.onload = img.onerror = null;
   }
   return { img, url, release: () => URL.revokeObjectURL(url) };
 }
@@ -66,6 +72,22 @@ export async function makePhoto(blob, { id = uid(), name = '', maxPixel }) {
     original.release();
     original.img.src = '';
   }
+}
+
+/** 選ばれたファイルを順番に読み込む。読み込めなかったファイルは飛ばして数だけ返す。 */
+export async function loadPhotoFiles(files, maxPixel, onProgress) {
+  const photos = [];
+  let failed = 0;
+  for (const [index, file] of files.entries()) {
+    try {
+      photos.push(await makePhoto(file, { name: file.name, maxPixel }));
+    } catch (error) {
+      failed += 1;
+      console.warn('読み込めない写真', file.name, error);
+    }
+    onProgress?.(index + 1, files.length);
+  }
+  return { photos, failed };
 }
 
 export function isImageFile(file) {

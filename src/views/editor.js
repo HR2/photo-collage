@@ -40,6 +40,8 @@ export function createEditorScreen(nav, project) {
     button('別の案', { iconName: 'shuffle', variant: 'row', onClick: () => runRelayout(() => project.shuffleLayout()) }),
     button('最初の案に戻す', { iconName: 'reset', variant: 'row', onClick: () => runRelayout(() => project.resetLayout()) }),
     button('ほかの方式と見比べる', { iconName: 'grid', variant: 'row', onClick: () => nav.back() }),
+    // 写真の追加・削除は見比べ画面で行う
+    button('写真を追加・削除', { iconName: 'photos', variant: 'row', onClick: () => nav.back() }),
   ];
 
   const slider = (label, key, min, max) => {

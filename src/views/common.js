@@ -71,6 +71,34 @@ export function showLoading(title) {
   };
 }
 
+let currentToast = null;
+
+/** 画面下部に短いお知らせを出す。actionLabel を指定するとボタン (「元に戻す」など) を付ける。 */
+export function showToast(message, { actionLabel, onAction, duration = 6000 } = {}) {
+  currentToast?.dismiss();
+  const el = h('div', { class: 'toast', role: 'status' },
+    h('span', {}, message),
+    actionLabel && h('button', {
+      type: 'button', class: 'toast-action',
+      onClick: () => { toast.dismiss(); onAction?.(); },
+    }, actionLabel));
+  document.body.append(el);
+  const timer = setTimeout(() => toast.dismiss(), duration);
+  const toast = {
+    dismiss() {
+      clearTimeout(timer);
+      el.remove();
+      if (currentToast === toast) currentToast = null;
+    },
+  };
+  currentToast = toast;
+  return toast;
+}
+
+export function dismissToast() {
+  currentToast?.dismiss();
+}
+
 function openDialog(content, { className = '' } = {}) {
   const dialog = h('dialog', { class: `dialog ${className}`.trim() }, content);
   document.body.append(dialog);
